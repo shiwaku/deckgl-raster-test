@@ -54,6 +54,41 @@ pwsh -File scripts/make-cog.ps1 `
 再投影は不要です。EPSG:6675 のような投影法のまま置いておけば、deck.gl-raster が
 適応的な三角メッシュを生成して GPU 側で Web メルカトルに変換します。
 
+## DEM を陰影段彩で描く
+
+能登 0.5m DEM（EPSG:6675, Float32）を段彩 + 陰影で描画します。カラーマップ・標高レンジ・
+光源の向き・陰影の強さはすべて GPU 側のユニフォームなので、タイルを再取得せずに即時反映されます。
+
+ここには deck.gl-raster を使ううえで効いてくる制約が2つあります。
+
+**1. 既定のパイプラインは符号なし整数の COG しか組み立てない**
+
+`inferRenderPipeline` は `SampleFormat` を見て分岐しますが、実装があるのは `SampleFormat.Uint`
+だけで、浮動小数では次の例外を投げます。
+
+```
+Inferring render pipeline for non-unsigned integers not yet supported.
+```
+
+したがって Float32 の DEM では `getTileData` と `renderTile` を自前で渡す必要があります
+（`src/dem/dem-pipeline.ts`）。標高は `r32float` テクスチャに載せ、
+`CreateTexture` → `FilterRange` → `LinearRescale` → `Colormap` → `Hillshade` の順で合成します。
+`FilterRange` が生の標高値に効く必要があるので `LinearRescale` より前、
+`Hillshade` は段彩後の色に乗算するので `Colormap` より後、という順序に意味があります。
+
+なお `r32float` は WebGL2 では線形補間できない（`OES_texture_float_linear` が要る）ため、
+サンプラは nearest 固定にしています。
+
+**2. 陰影の組み込みモジュールが無い**
+
+GPU モジュールは `Colormap` / `LinearRescale` / `FilterNoDataVal` / `CompositeBands` /
+色空間変換 / `CutlineBbox` / `MaskTexture` などで、hillshade は含まれていません。
+`src/gpu/hillshade.ts` に Horn 法（3x3）の luma.gl ShaderModule を自前で用意しています。
+連鎖してきた `color` ではなく、自前のサンプラで標高テクスチャを直接読みます。
+
+既知の制限として、タイル境界では隣接タイルの画素を参照できずクランプされるため、
+1 画素分の継ぎ目が出ます。消すには境界付きタイルで 1 画素の縁を読み込む必要があります。
+
 ## COG を検証する
 
 ブラウザを開かずに、COG の読み取り経路（Range 配信・ヘッダ解析・タイル展開）だけを確認できます。
