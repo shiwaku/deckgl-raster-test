@@ -11,7 +11,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { COLORMAP_CHOICES } from "./colormaps.js";
 import { getDemTileData, makeDemRenderTile } from "./dem/dem-pipeline.js";
-import type { Source } from "./sources.js";
+import type { Source, SourceKind } from "./sources.js";
 import { SOURCES } from "./sources.js";
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -32,6 +32,8 @@ const zfactorValEl = el<HTMLSpanElement>("zfactor-val");
 const azimuthEl = el<HTMLInputElement>("azimuth");
 const altitudeEl = el<HTMLInputElement>("altitude");
 const fminEl = el<HTMLInputElement>("fmin");
+const kindEl = el<HTMLSelectElement>("kind");
+const attributionEl = el<HTMLParagraphElement>("attribution");
 
 for (const [i, s] of SOURCES.entries()) {
   const opt = document.createElement("option");
@@ -187,6 +189,8 @@ function selectSource(source: Source) {
   current = { source, generation: current.generation };
   const isDem = source.kind === "dem";
   demControlsEl.hidden = !isDem;
+  kindEl.value = source.kind;
+  attributionEl.textContent = source.attribution ?? "";
   if (isDem && source.elevationRange) {
     rminEl.value = String(source.elevationRange[0]);
     rmaxEl.value = String(source.elevationRange[1]);
@@ -208,8 +212,9 @@ selectEl.addEventListener("change", () => {
 loadEl.addEventListener("click", () => {
   const url = urlEl.value.trim();
   if (!url) return;
-  // URL 直指定は種別が分からないので、DEM 表示中ならその設定を引き継ぐ
-  selectSource({ ...current.source, title: url, url });
+  // URL からは種別を判別できないので、隣のセレクタの指定に従う
+  const kind = kindEl.value as SourceKind;
+  selectSource({ title: url, url, kind, elevationRange: [0, 600] });
 });
 
 urlEl.addEventListener("keydown", (e) => {

@@ -1,3 +1,5 @@
+export type SourceKind = "rgb" | "dem";
+
 export type Source = {
   title: string;
   url: string;
@@ -5,12 +7,32 @@ export type Source = {
    * `"rgb"` は COGLayer の既定パイプラインに任せる。
    * `"dem"` は Float32 1 バンド用の自前パイプライン（段彩 + 陰影）を使う。
    */
-  kind: "rgb" | "dem";
+  kind: SourceKind;
   /** DEM のときの段彩の既定レンジ（m）。 */
   elevationRange?: [number, number];
-  /** 出典表記が必要なものだけ。 */
+  /** 出典表記。CC BY などで表示が要るものは必ず入れる。 */
   attribution?: string;
 };
+
+/** `.env` の VITE_COG_URL。R2 に置いた静岡市オルソを想定。 */
+const ownCogUrl = import.meta.env.VITE_COG_URL as string | undefined;
+
+/**
+ * dev サーバーでは vite.config.ts の local-raster プラグインが
+ * LOCAL_RASTER_DIR を /local/ 配下に Range 付きで配信する。
+ * 手元で変換した COG をアップロード前に確認するための入口。
+ */
+const LOCAL_SHIZUOKA_PATH = "/local/deckgl-raster-test/data/shizuoka-aerial-cog.tif";
+
+const SHIZUOKA_ATTRIBUTION =
+  '出典: 静岡県「VIRTUAL SHIZUOKA 静岡県 中・西部 点群データ」(CC BY 4.0) を加工して作成';
+
+const shizuoka = (url: string, label: string): Source => ({
+  title: `静岡市 オルソ画像 0.2m ${label} — EPSG:6676`,
+  kind: "rgb",
+  attribution: SHIZUOKA_ATTRIBUTION,
+  url,
+});
 
 /**
  * deck.gl-raster 公式 example (examples/cog-basic) で動作確認されている公開 COG。
@@ -56,25 +78,8 @@ export const REMOTE_SOURCES: Source[] = [
   },
 ];
 
-/** `.env` の VITE_COG_URL。R2 に置いた能登 DEM を想定。 */
-const ownCogUrl = import.meta.env.VITE_COG_URL as string | undefined;
-
-/**
- * dev サーバーでは vite.config.ts の local-raster プラグインが
- * LOCAL_RASTER_DIR を /local/ 配下に Range 付きで配信する。
- * 手元で変換した COG をアップロード前に確認するための入口。
- */
-const LOCAL_DEM_PATH = "/local/noto-csmap/cog/noto-dem-2024-f32-cog.tif";
-
-const notoDem = (url: string, label: string): Source => ({
-  title: `能登 DEM 0.5m ${label} — EPSG:6675, Float32`,
-  kind: "dem",
-  elevationRange: [0, 600],
-  url,
-});
-
 export const SOURCES: Source[] = [
-  ...(ownCogUrl ? [notoDem(ownCogUrl, "(R2)")] : []),
-  ...(import.meta.env.DEV ? [notoDem(LOCAL_DEM_PATH, "(ローカル)")] : []),
+  ...(ownCogUrl ? [shizuoka(ownCogUrl, "(R2)")] : []),
+  ...(import.meta.env.DEV ? [shizuoka(LOCAL_SHIZUOKA_PATH, "(ローカル)")] : []),
   ...REMOTE_SOURCES,
 ];

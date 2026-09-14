@@ -23,6 +23,7 @@
       input[type="range"] { width: 100%; }
       .row { display: flex; gap: 6px; align-items: center; }
       .row > * { flex: 1; }
+      .row select { flex: 0 0 auto; width: auto; }
       .row button { flex: 0 0 auto; padding: 5px 10px; font: inherit; cursor: pointer; }
       fieldset {
         margin: 12px 0 0; padding: 4px 10px 10px; border: 1px solid #ddd; border-radius: 6px;
@@ -52,9 +53,15 @@
       <label for="src">ソース</label>
       <select id="src"></select>
 
+      <p id="attribution" class="hint"></p>
+
       <label for="url">任意の COG URL（CORS + Range 対応が必要）</label>
       <div class="row">
         <input id="url" type="url" placeholder="https://.../foo.tif" />
+        <select id="kind" title="描画パイプライン">
+          <option value="rgb">RGB</option>
+          <option value="dem">DEM</option>
+        </select>
         <button id="load">読込</button>
       </div>
 
