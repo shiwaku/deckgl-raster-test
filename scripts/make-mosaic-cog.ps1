@@ -30,6 +30,12 @@ param(
   [int]$Quality = 85,
   [int]$BlockSize = 512,
   [string]$Resampling = "AVERAGE",
+  # 図郭が敷き詰められていない範囲を透過させる。
+  # gdalbuildvrt -addalpha で 4 バンド目を作ると、COG ドライバが JPEG 圧縮時に
+  # それをマスクバンドへ変換する（JPEG は 3 バンドしか持てないため）。
+  # @developmentseed/geotiff はマスク IFD を読み、既定パイプラインが
+  # MaskTexture モジュールを挿すので透過がそのまま効く。サイズ増は 0.2% 未満。
+  [switch]$AddAlpha,
   [string]$GdalRoot = "C:\OSGeo4W-gdal313"
 )
 
@@ -59,11 +65,15 @@ $sources.FullName | Set-Content $listPath -Encoding ascii
 
 Write-Host ("sources     : {0:N0} files ({1:N1} GB) in {2}" -f $sources.Count, $srcGb, $SourceDir)
 Write-Host ("destination : {0}" -f $Destination)
-Write-Host ("options     : {0} quality {1}, blocksize {2}, overviews {3}" -f $Compression, $Quality, $BlockSize, $Resampling)
+Write-Host ("options     : {0} quality {1}, blocksize {2}, overviews {3}{4}" -f `
+  $Compression, $Quality, $BlockSize, $Resampling, $(if ($AddAlpha) { ", alpha -> mask band" } else { "" }))
 
 $started = Get-Date
 Write-Host "`n[1/2] building VRT…"
-& $buildvrt -overwrite -input_file_list $listPath $vrtPath
+$vrtArgs = @("-overwrite")
+if ($AddAlpha) { $vrtArgs += "-addalpha" }
+$vrtArgs += @("-input_file_list", $listPath, $vrtPath)
+& $buildvrt @vrtArgs
 if ($LASTEXITCODE -ne 0) { throw "gdalbuildvrt failed with exit code $LASTEXITCODE" }
 
 $gdalArgs = @(
