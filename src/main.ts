@@ -229,4 +229,25 @@ window.addEventListener("unhandledrejection", (e) => {
   setStatus(`読み込みに失敗しました:\n${e.reason}`, true);
 });
 
-map.on("load", () => selectSource(SOURCES[0]));
+/**
+ * ローカル配信のソースはまだ変換が終わっていないことがあるので、最初の1件は
+ * HEAD で存在を確かめてから選ぶ。見つからなければ次のソースに送る。
+ */
+async function pickInitialSource(): Promise<Source> {
+  for (const source of SOURCES) {
+    if (!source.url.startsWith("/local/")) return source;
+    try {
+      const res = await fetch(source.url, { method: "HEAD" });
+      if (res.ok) return source;
+    } catch {
+      // 次の候補へ
+    }
+  }
+  return SOURCES[0];
+}
+
+map.on("load", async () => {
+  const source = await pickInitialSource();
+  selectEl.value = String(SOURCES.indexOf(source));
+  selectSource(source);
+});
