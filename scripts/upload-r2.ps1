@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
   COG を Cloudflare R2 にアップロードする。
 

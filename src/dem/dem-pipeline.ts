@@ -43,15 +43,17 @@ export async function getDemTileData(
   const tile = await image.fetchTile(x, y, { boundless: false, pool, signal });
   const { array } = tile;
 
-  if (array.layout === "band-separate") {
-    throw new Error("Band-separate DEM tiles are not supported.");
-  }
   if (array.count !== 1) {
     throw new Error(`Expected a single-band DEM, got ${array.count} bands.`);
   }
 
+  // LERC のデコーダは band-separate を返し、ZSTD などは pixel-interleaved を
+  // 返す。1 バンドなのでどちらでも中身は同じ長さの typed array 1 本になる。
+  const elevation =
+    array.layout === "band-separate" ? array.bands[0] : array.data;
+
   const texture = device.createTexture({
-    data: array.data,
+    data: elevation,
     format: "r32float",
     width: array.width,
     height: array.height,
@@ -71,7 +73,7 @@ export async function getDemTileData(
     cellSize,
     width: array.width,
     height: array.height,
-    byteLength: array.data.byteLength,
+    byteLength: elevation.byteLength,
   };
 }
 
