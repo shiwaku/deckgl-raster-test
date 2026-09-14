@@ -54,6 +54,24 @@ pwsh -File scripts/make-cog.ps1 `
 再投影は不要です。EPSG:6675 のような投影法のまま置いておけば、deck.gl-raster が
 適応的な三角メッシュを生成して GPU 側で Web メルカトルに変換します。
 
+## COG を検証する
+
+ブラウザを開かずに、COG の読み取り経路（Range 配信・ヘッダ解析・タイル展開）だけを確認できます。
+表示されないときに、原因がデータ側かレンダリング側かを切り分けるのに使います。
+
+```bash
+node scripts/probe-cog.mjs http://127.0.0.1:3000/local/path/to/foo.tif
+```
+
+```
+header         : 158 ms / 1 requests / 64.0 KB
+size           : 21504 x 22784, 3 bands
+tiled          : true, tile 512 x 512
+overviews      : 6
+tile (0,0) of coarsest: 41 ms, 1 req, 237.8 KB
+decoded        : 512 x 512, 3 bands, layout=pixel-interleaved
+```
+
 ## R2 に置く
 
 ```powershell
