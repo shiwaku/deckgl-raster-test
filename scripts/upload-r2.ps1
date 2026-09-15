@@ -44,8 +44,7 @@ $env:AWS_RESPONSE_CHECKSUM_VALIDATION = "when_required"
 $args = @(
   "s3", "cp", $File, "s3://$Bucket/$Key",
   "--content-type", "image/tiff",
-  "--cli-read-timeout", "0",
-  "--cli-write-timeout", "0"
+  "--cli-read-timeout", "0"
 )
 if ($EndpointUrl) { $args += @("--endpoint-url", $EndpointUrl) }
 if ($ProfileName) { $args += @("--profile", $ProfileName) }
