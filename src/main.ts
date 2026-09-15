@@ -1,5 +1,6 @@
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { COGLayer } from "@developmentseed/deck.gl-geotiff";
+import { DecoderPool } from "@developmentseed/geotiff";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Source } from "./sources.js";
@@ -44,6 +45,21 @@ function setStatus(text: string, isError = false) {
 }
 
 /**
+ * タイルの展開を Worker に出さず、メインスレッドで行う。
+ *
+ * 既定の `defaultDecoderPool` は Worker プールを作るが、その Worker の中では
+ * JPEG と WebP のタイルが展開できず、描画されないまま止まる。
+ * この 2 つは `createImageBitmap` + `OffscreenCanvas` に依存する
+ * "browser-only" コーデックで、LZW や DEFLATE のような JS 実装とは経路が別。
+ * 実際 LZW の COG は Worker のままでも描画できていた。
+ *
+ * `size: 0` なら `createWorker` が呼ばれず `hasWorkers` が false になり、
+ * `pool.decode()` が `worker.submitJob` ではなく `decode()` を直接呼ぶ。
+ * 展開がメインスレッドに載るぶん描画は重くなるが、JPEG の COG が出る。
+ */
+const mainThreadPool = new DecoderPool({ size: 0 });
+
+/**
  * レイヤーを組み直す。
  *
  * `refetch: false` のときは id を据え置くので、タイルは再取得されない。
@@ -61,6 +77,7 @@ function update({ refetch }: { refetch: boolean }) {
     id: `cog-${current.generation}`,
     geotiff: source.url,
     debug: debugEl.checked,
+    pool: mainThreadPool,
     onGeoTIFFLoad: (
       tiff: { width: number; height: number; overviews: unknown[] },
       {

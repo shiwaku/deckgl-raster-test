@@ -14,6 +14,7 @@
     "@deck.gl/mapbox": "^9.3.6",
     "@deck.gl/mesh-layers": "^9.3.6",
     "@developmentseed/deck.gl-geotiff": "0.8.0-beta.2",
+    "@developmentseed/geotiff": "0.8.0-beta.2",
     "@developmentseed/morecantile": "0.8.0-beta.2",
     "@luma.gl/core": "^9.3.6",
     "@luma.gl/shadertools": "^9.3.6",

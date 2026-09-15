@@ -136,6 +136,15 @@ Range リクエストを使うため、`content-range` / `accept-ranges` を `Ex
 
 ## つまずいた点
 
+- **JPEG と WebP の COG が Worker では展開できない** — 既定の `defaultDecoderPool` は Web Worker
+  プールでタイルを展開するが、その中では JPEG / WebP のタイルが展開できず、エラーも出さずに
+  描画されないまま止まる。この 2 つだけが `createImageBitmap` + `OffscreenCanvas` に依存する
+  **"browser-only" コーデック**で、LZW や DEFLATE のような JS 実装とは経路が分かれている
+  （upstream の [#228](https://github.com/developmentseed/deck.gl-raster/issues/228) 参照）。
+  実際、同じ EPSG:6676・同じ寸法で圧縮だけ違う COG を並べると、LZW / DEFLATE は描画され、
+  JPEG / WebP は描画されなかった。`COGLayer` の `pool` に
+  `new DecoderPool({ size: 0 })` を渡すとメインスレッドで展開され、JPEG の COG が出る。
+  展開がメインスレッドに載るので描画は重くなる。
 - **`Top-level await is not available`** — `@developmentseed/lzw-tiff-decoder` が top-level await を
   使うため、`vite.config.ts` の `esbuild` / `optimizeDeps` / `build` すべてに `target: "esnext"` が必要。
 - **`epsgResolver` が epsg.io に外部リクエストを投げる** — 既定の実装が EPSG コードの解決に
