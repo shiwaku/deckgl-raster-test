@@ -1,15 +1,6 @@
-export type SourceKind = "rgb" | "dem";
-
 export type Source = {
   title: string;
   url: string;
-  /**
-   * `"rgb"` は COGLayer の既定パイプラインに任せる。
-   * `"dem"` は Float32 1 バンド用の自前パイプライン（段彩 + 陰影）を使う。
-   */
-  kind: SourceKind;
-  /** DEM のときの段彩の既定レンジ（m）。 */
-  elevationRange?: [number, number];
   /** 出典表記。CC BY などで表示が要るものは必ず入れる。 */
   attribution?: string;
 };
@@ -29,7 +20,6 @@ const SHIZUOKA_ATTRIBUTION =
 
 const shizuoka = (url: string, label: string): Source => ({
   title: `静岡市 オルソ画像 0.2m ${label} — EPSG:6676`,
-  kind: "rgb",
   attribution: SHIZUOKA_ATTRIBUTION,
   url,
 });

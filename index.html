@@ -17,18 +17,12 @@
       #panel h1 { font-size: 15px; margin: 0 0 4px; }
       #panel p.lead { margin: 0 0 10px; color: #555; font-size: 12px; }
       label { display: block; font-weight: 600; font-size: 12px; margin: 10px 0 4px; }
-      select, input[type="url"], input[type="number"] {
+      select, input[type="url"] {
         width: 100%; box-sizing: border-box; padding: 5px 6px; font: inherit;
       }
-      input[type="range"] { width: 100%; }
       .row { display: flex; gap: 6px; align-items: center; }
       .row > * { flex: 1; }
-      .row select { flex: 0 0 auto; width: auto; }
       .row button { flex: 0 0 auto; padding: 5px 10px; font: inherit; cursor: pointer; }
-      fieldset {
-        margin: 12px 0 0; padding: 4px 10px 10px; border: 1px solid #ddd; border-radius: 6px;
-      }
-      legend { font-size: 11px; font-weight: 600; color: #666; padding: 0 4px; }
       .check { font-weight: 400; display: flex; align-items: center; gap: 6px; margin-top: 10px; }
       .check input { flex: 0 0 auto; width: auto; }
       #status {
@@ -58,41 +52,8 @@
       <label for="url">任意の COG URL（CORS + Range 対応が必要）</label>
       <div class="row">
         <input id="url" type="url" placeholder="https://.../foo.tif" />
-        <select id="kind" title="描画パイプライン">
-          <option value="rgb">RGB</option>
-          <option value="dem">DEM</option>
-        </select>
         <button id="load">読込</button>
       </div>
-
-      <fieldset id="dem-controls" hidden>
-        <legend>DEM の描画（GPU で即時反映）</legend>
-
-        <label for="cmap">カラーマップ</label>
-        <select id="cmap"></select>
-
-        <label>段彩のレンジ（m）</label>
-        <div class="row">
-          <input id="rmin" type="number" step="10" />
-          <input id="rmax" type="number" step="10" />
-        </div>
-
-        <label for="strength">陰影の強さ <span id="strength-val"></span></label>
-        <input id="strength" type="range" min="0" max="1" step="0.05" />
-
-        <label for="zfactor">標高の強調 <span id="zfactor-val"></span></label>
-        <input id="zfactor" type="range" min="0.5" max="10" step="0.5" />
-
-        <label>光源（方位角 / 高度角）</label>
-        <div class="row">
-          <input id="azimuth" type="number" min="0" max="360" step="15" />
-          <input id="altitude" type="number" min="0" max="90" step="5" />
-        </div>
-
-        <label for="fmin">これ未満の標高を捨てる（m）</label>
-        <input id="fmin" type="number" step="1" />
-        <p class="hint">海面や欠測を落とす用。陰影はタイル境界で 1 画素の継ぎ目が出ます。</p>
-      </fieldset>
 
       <label class="check"><input id="debug" type="checkbox" /> タイル境界と再投影メッシュを表示</label>
 
