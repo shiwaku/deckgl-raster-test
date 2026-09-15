@@ -29,6 +29,8 @@ jobs:
         env:
           # 公開 COG の URL。リポジトリ変数に設定する（秘密情報ではない）
           VITE_COG_URL: ${{ vars.VITE_COG_URL }}
+          # 出典表記。CC BY のデータを出すときは必ず設定する
+          VITE_COG_ATTRIBUTION: ${{ vars.VITE_COG_ATTRIBUTION }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
