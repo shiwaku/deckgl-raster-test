@@ -11,7 +11,6 @@ const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as
 const selectEl = el<HTMLSelectElement>("src");
 const urlEl = el<HTMLInputElement>("url");
 const loadEl = el<HTMLButtonElement>("load");
-const debugEl = el<HTMLInputElement>("debug");
 const statusEl = el<HTMLDivElement>("status");
 const attributionEl = el<HTMLParagraphElement>("attribution");
 
@@ -22,11 +21,22 @@ for (const [i, s] of SOURCES.entries()) {
   selectEl.appendChild(opt);
 }
 
+/**
+ * 起動時に URL で位置が指定されていたか。
+ *
+ * 指定されていれば最初の COG 読み込みで `fitBounds` を見送る。
+ * そうしないと、共有された URL を開いた瞬間に COG 全体の範囲へ飛ばされて
+ * ハッシュを付けた意味がなくなる。2 回目以降の読み込みでは通常どおり飛ぶ。
+ */
+let honorInitialHash = /^#\d/.test(location.hash);
+
 const map = new maplibregl.Map({
   container: "map",
   style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [137, 37],
   zoom: 4,
+  // 見ている位置を URL に残す。表示がおかしい場所をそのまま共有できる
+  hash: true,
 });
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 map.addControl(new maplibregl.ScaleControl());
@@ -59,24 +69,18 @@ function setStatus(text: string, isError = false) {
  */
 const mainThreadPool = new DecoderPool({ size: 0 });
 
-/**
- * レイヤーを組み直す。
- *
- * `refetch: false` のときは id を据え置くので、タイルは再取得されない。
- * デバッグ表示の切り替えはこちら。
- */
-function update({ refetch }: { refetch: boolean }) {
+/** 選ばれているソースでレイヤーを組み直す。id を変えるのでタイルは取り直される。 */
+function update() {
   const { source } = current;
   if (!source?.url) return;
-  if (refetch) current.generation += 1;
+  current.generation += 1;
 
   const started = performance.now();
-  if (refetch) setStatus(`ヘッダ取得中…\n${source.url}`);
+  setStatus(`ヘッダ取得中…\n${source.url}`);
 
   const layer = new COGLayer({
     id: `cog-${current.generation}`,
     geotiff: source.url,
-    debug: debugEl.checked,
     pool: mainThreadPool,
     onGeoTIFFLoad: (
       tiff: { width: number; height: number; overviews: unknown[] },
@@ -89,7 +93,9 @@ function update({ refetch }: { refetch: boolean }) {
       },
     ) => {
       const { west, south, east, north } = geographicBounds;
-      if (refetch) {
+      if (honorInitialHash) {
+        honorInitialHash = false;
+      } else {
         map.fitBounds(
           [
             [west, south],
@@ -120,7 +126,7 @@ function update({ refetch }: { refetch: boolean }) {
 function selectSource(source: Source) {
   current = { source, generation: current.generation };
   attributionEl.textContent = source.attribution ?? "";
-  update({ refetch: true });
+  update();
 }
 
 selectEl.addEventListener("change", () => {
@@ -137,8 +143,6 @@ loadEl.addEventListener("click", () => {
 urlEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") loadEl.click();
 });
-
-debugEl.addEventListener("change", () => update({ refetch: false }));
 
 window.addEventListener("unhandledrejection", (e) => {
   setStatus(`読み込みに失敗しました:\n${e.reason}`, true);
