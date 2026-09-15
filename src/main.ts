@@ -79,7 +79,7 @@ const overlay = new MapboxOverlay({
       .then((image) => {
         colormapTexture = createColormapTexture(device, image);
         // DEM を先に選んでいた場合、テクスチャが揃った時点で描き直す
-        if (current.source.kind === "dem") update({ refetch: false });
+        if (current.source?.kind === "dem") update({ refetch: false });
       })
       .catch((e) => setStatus(`カラーマップの読み込みに失敗: ${e}`, true));
   },
@@ -235,13 +235,11 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 /**
- * 自前のソース（`probe: true`）は変換が終わっていなかったり、まだ R2 に
- * 上げていなかったりするので、HEAD で存在を確かめてから選ぶ。
- * 見つからなければ次の候補へ送り、最後は公式サンプルに落ちる。
+ * 一覧のソースはどれも手元で用意する COG なので、変換が終わっていなかったり、
+ * まだ R2 に上げていなかったりする。HEAD で存在を確かめてから選ぶ。
  */
-async function pickInitialSource(): Promise<Source> {
+async function pickInitialSource(): Promise<Source | null> {
   for (const source of SOURCES) {
-    if (!source.probe) return source;
     try {
       const res = await fetch(source.url, { method: "HEAD" });
       if (res.ok) return source;
@@ -249,11 +247,15 @@ async function pickInitialSource(): Promise<Source> {
       // 次の候補へ
     }
   }
-  return SOURCES[0];
+  return null;
 }
 
 map.on("load", async () => {
   const source = await pickInitialSource();
+  if (!source) {
+    setStatus("読み込める COG がありません。URL 欄に COG の URL を貼ってください。", true);
+    return;
+  }
   selectEl.value = String(SOURCES.indexOf(source));
   selectSource(source);
 });

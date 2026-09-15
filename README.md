@@ -21,10 +21,8 @@ npm install
 npm run dev     # http://127.0.0.1:3000
 ```
 
-公式サンプルの公開 COG（Sentinel-2、NLCD Land Cover 1.3GB、Swisstopo、Umbra SAR など）が
-最初から選択肢に入っているので、設定なしで動きます。
-
-自分の COG を見る場合は、パネルの URL 欄に直接貼るか `.env` を作ります。
+ソース一覧に出るのは手元で用意した COG だけです。何も設定していない状態では
+空になるので、パネルの URL 欄に COG の URL を直接貼るか、`.env` を作ります。
 
 ```bash
 cp .env.example .env
