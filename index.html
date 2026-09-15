@@ -17,7 +17,7 @@
       #panel h1 { font-size: 15px; margin: 0 0 4px; }
       #panel p.lead { margin: 0 0 10px; color: #555; font-size: 12px; }
       label { display: block; font-weight: 600; font-size: 12px; margin: 10px 0 4px; }
-      select, input[type="url"] {
+      input[type="url"] {
         width: 100%; box-sizing: border-box; padding: 5px 6px; font: inherit;
       }
       .row { display: flex; gap: 6px; align-items: center; }
@@ -42,16 +42,13 @@
         の <code>COGLayer</code> で、タイルサーバーを介さず COG を直接描画します。
       </p>
 
-      <label for="src">ソース</label>
-      <select id="src"></select>
-
-      <p id="attribution" class="hint"></p>
-
-      <label for="url">任意の COG URL（CORS + Range 対応が必要）</label>
+      <label for="url">COG の URL（CORS + Range 対応が必要）</label>
       <div class="row">
         <input id="url" type="url" placeholder="https://.../foo.tif" />
         <button id="load">読込</button>
       </div>
+
+      <p id="attribution" class="hint"></p>
 
       <div id="status">初期化中…</div>
     </div>

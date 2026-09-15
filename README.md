@@ -21,8 +21,8 @@ npm install
 npm run dev     # http://127.0.0.1:3000
 ```
 
-ソース一覧に出るのは手元で用意した COG だけです。何も設定していない状態では
-空になるので、パネルの URL 欄に COG の URL を直接貼るか、`.env` を作ります。
+COG はパネルの URL 欄に貼って読み込みます。起動時に読み込むものを決めておく場合は
+`.env` を作ります。
 
 ```bash
 cp .env.example .env
@@ -30,7 +30,8 @@ cp .env.example .env
 
 | 変数 | 用途 |
 | --- | --- |
-| `VITE_COG_URL` | 一覧の先頭に出す COG の URL。R2 の公開 URL を想定 |
+| `VITE_COG_URL` | 起動時に読み込む COG の URL。R2 の公開 URL を想定。未設定なら URL 欄の入力を待つ |
+| `VITE_COG_ATTRIBUTION` | パネルに出す出典表記。CC BY のデータでは必ず入れる |
 | `LOCAL_RASTER_DIR` | dev サーバーが `/local/` 配下に Range 付きで配信するディレクトリ |
 
 `LOCAL_RASTER_DIR` を設定すると、アップロード前にローカルの巨大 COG をそのまま検証できます。

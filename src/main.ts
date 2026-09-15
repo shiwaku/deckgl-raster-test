@@ -3,39 +3,27 @@ import { COGLayer } from "@developmentseed/deck.gl-geotiff";
 import { DecoderPool } from "@developmentseed/geotiff";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { Source } from "./sources.js";
-import { SOURCES } from "./sources.js";
 
 const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
-const selectEl = el<HTMLSelectElement>("src");
 const urlEl = el<HTMLInputElement>("url");
 const loadEl = el<HTMLButtonElement>("load");
 const statusEl = el<HTMLDivElement>("status");
 const attributionEl = el<HTMLParagraphElement>("attribution");
 
-for (const [i, s] of SOURCES.entries()) {
-  const opt = document.createElement("option");
-  opt.value = String(i);
-  opt.textContent = s.title;
-  selectEl.appendChild(opt);
-}
+/** `.env` の VITE_COG_URL。起動時に URL 欄へ入れて、そのまま読み込む。 */
+const initialUrl = (import.meta.env.VITE_COG_URL as string | undefined)?.trim();
 
-/**
- * 起動時に URL で位置が指定されていたか。
- *
- * 指定されていれば最初の COG 読み込みで `fitBounds` を見送る。
- * そうしないと、共有された URL を開いた瞬間に COG 全体の範囲へ飛ばされて
- * ハッシュを付けた意味がなくなる。2 回目以降の読み込みでは通常どおり飛ぶ。
- */
-let honorInitialHash = /^#\d/.test(location.hash);
+/** `.env` の VITE_COG_ATTRIBUTION。CC BY などで出典表示が要るデータのために出す。 */
+const attribution = (import.meta.env.VITE_COG_ATTRIBUTION as string | undefined)?.trim();
+attributionEl.textContent = attribution ?? "";
 
 const map = new maplibregl.Map({
   container: "map",
   style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [137, 37],
   zoom: 4,
-  // 見ている位置を URL に残す。表示がおかしい場所をそのまま共有できる
+  // 見ている位置を URL に残す。おかしい場所をそのままリンクで渡せる
   hash: true,
 });
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
@@ -43,11 +31,6 @@ map.addControl(new maplibregl.ScaleControl());
 
 const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
 map.addControl(overlay as unknown as maplibregl.IControl);
-
-let current: { source: Source | undefined; generation: number } = {
-  source: SOURCES[0],
-  generation: 0,
-};
 
 function setStatus(text: string, isError = false) {
   statusEl.textContent = text;
@@ -69,18 +52,17 @@ function setStatus(text: string, isError = false) {
  */
 const mainThreadPool = new DecoderPool({ size: 0 });
 
-/** 選ばれているソースでレイヤーを組み直す。id を変えるのでタイルは取り直される。 */
-function update() {
-  const { source } = current;
-  if (!source?.url) return;
-  current.generation += 1;
+/** 読み込むたびに id を変えて、タイルを取り直させる。 */
+let generation = 0;
 
+function load(url: string) {
+  generation += 1;
   const started = performance.now();
-  setStatus(`ヘッダ取得中…\n${source.url}`);
+  setStatus(`ヘッダ取得中…\n${url}`);
 
   const layer = new COGLayer({
-    id: `cog-${current.generation}`,
-    geotiff: source.url,
+    id: `cog-${generation}`,
+    geotiff: url,
     pool: mainThreadPool,
     onGeoTIFFLoad: (
       tiff: { width: number; height: number; overviews: unknown[] },
@@ -93,17 +75,16 @@ function update() {
       },
     ) => {
       const { west, south, east, north } = geographicBounds;
-      if (honorInitialHash) {
-        honorInitialHash = false;
-      } else {
-        map.fitBounds(
-          [
-            [west, south],
-            [east, north],
-          ],
-          { padding: 40, duration: 1000 },
-        );
-      }
+      // 起動時も URL 欄からの読み込みも、必ずデータの範囲へ飛ぶ。
+      // ハッシュを優先すると、前回の位置が残っているだけのときに
+      // 読み込めているのに何も見えない状態になる。
+      map.fitBounds(
+        [
+          [west, south],
+          [east, north],
+        ],
+        { padding: 40, duration: 1000 },
+      );
       (window as unknown as { tiff: unknown }).tiff = tiff;
 
       const overviews = tiff.overviews?.length ?? 0;
@@ -123,21 +104,9 @@ function update() {
   overlay.setProps({ layers: [layer] });
 }
 
-function selectSource(source: Source) {
-  current = { source, generation: current.generation };
-  attributionEl.textContent = source.attribution ?? "";
-  update();
-}
-
-selectEl.addEventListener("change", () => {
-  urlEl.value = "";
-  selectSource(SOURCES[Number(selectEl.value)]);
-});
-
 loadEl.addEventListener("click", () => {
   const url = urlEl.value.trim();
-  if (!url) return;
-  selectSource({ title: url, url });
+  if (url) load(url);
 });
 
 urlEl.addEventListener("keydown", (e) => {
@@ -148,28 +117,11 @@ window.addEventListener("unhandledrejection", (e) => {
   setStatus(`読み込みに失敗しました:\n${e.reason}`, true);
 });
 
-/**
- * 一覧のソースはどれも手元で用意する COG なので、変換が終わっていなかったり、
- * まだ R2 に上げていなかったりする。HEAD で存在を確かめてから選ぶ。
- */
-async function pickInitialSource(): Promise<Source | null> {
-  for (const source of SOURCES) {
-    try {
-      const res = await fetch(source.url, { method: "HEAD" });
-      if (res.ok) return source;
-    } catch {
-      // 次の候補へ
-    }
-  }
-  return null;
-}
-
-map.on("load", async () => {
-  const source = await pickInitialSource();
-  if (!source) {
-    setStatus("読み込める COG がありません。URL 欄に COG の URL を貼ってください。", true);
+map.on("load", () => {
+  if (!initialUrl) {
+    setStatus("URL 欄に COG の URL を貼ってください。");
     return;
   }
-  selectEl.value = String(SOURCES.indexOf(source));
-  selectSource(source);
+  urlEl.value = initialUrl;
+  load(initialUrl);
 });
