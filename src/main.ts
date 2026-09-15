@@ -1,5 +1,6 @@
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { COGLayer } from "@developmentseed/deck.gl-geotiff";
+import { DecoderPool } from "@developmentseed/geotiff";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Source } from "./sources.js";
@@ -10,7 +11,6 @@ const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as
 const selectEl = el<HTMLSelectElement>("src");
 const urlEl = el<HTMLInputElement>("url");
 const loadEl = el<HTMLButtonElement>("load");
-const debugEl = el<HTMLInputElement>("debug");
 const statusEl = el<HTMLDivElement>("status");
 const attributionEl = el<HTMLParagraphElement>("attribution");
 
@@ -21,11 +21,22 @@ for (const [i, s] of SOURCES.entries()) {
   selectEl.appendChild(opt);
 }
 
+/**
+ * 起動時に URL で位置が指定されていたか。
+ *
+ * 指定されていれば最初の COG 読み込みで `fitBounds` を見送る。
+ * そうしないと、共有された URL を開いた瞬間に COG 全体の範囲へ飛ばされて
+ * ハッシュを付けた意味がなくなる。2 回目以降の読み込みでは通常どおり飛ぶ。
+ */
+let honorInitialHash = /^#\d/.test(location.hash);
+
 const map = new maplibregl.Map({
   container: "map",
   style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
   center: [137, 37],
   zoom: 4,
+  // 見ている位置を URL に残す。表示がおかしい場所をそのまま共有できる
+  hash: true,
 });
 map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 map.addControl(new maplibregl.ScaleControl());
@@ -44,23 +55,33 @@ function setStatus(text: string, isError = false) {
 }
 
 /**
- * レイヤーを組み直す。
+ * タイルの展開を Worker に出さず、メインスレッドで行う。
  *
- * `refetch: false` のときは id を据え置くので、タイルは再取得されない。
- * デバッグ表示の切り替えはこちら。
+ * 既定の `defaultDecoderPool` は Worker プールを作るが、その Worker の中では
+ * JPEG と WebP のタイルが展開できず、描画されないまま止まる。
+ * この 2 つは `createImageBitmap` + `OffscreenCanvas` に依存する
+ * "browser-only" コーデックで、LZW や DEFLATE のような JS 実装とは経路が別。
+ * 実際 LZW の COG は Worker のままでも描画できていた。
+ *
+ * `size: 0` なら `createWorker` が呼ばれず `hasWorkers` が false になり、
+ * `pool.decode()` が `worker.submitJob` ではなく `decode()` を直接呼ぶ。
+ * 展開がメインスレッドに載るぶん描画は重くなるが、JPEG の COG が出る。
  */
-function update({ refetch }: { refetch: boolean }) {
+const mainThreadPool = new DecoderPool({ size: 0 });
+
+/** 選ばれているソースでレイヤーを組み直す。id を変えるのでタイルは取り直される。 */
+function update() {
   const { source } = current;
   if (!source?.url) return;
-  if (refetch) current.generation += 1;
+  current.generation += 1;
 
   const started = performance.now();
-  if (refetch) setStatus(`ヘッダ取得中…\n${source.url}`);
+  setStatus(`ヘッダ取得中…\n${source.url}`);
 
   const layer = new COGLayer({
     id: `cog-${current.generation}`,
     geotiff: source.url,
-    debug: debugEl.checked,
+    pool: mainThreadPool,
     onGeoTIFFLoad: (
       tiff: { width: number; height: number; overviews: unknown[] },
       {
@@ -72,7 +93,9 @@ function update({ refetch }: { refetch: boolean }) {
       },
     ) => {
       const { west, south, east, north } = geographicBounds;
-      if (refetch) {
+      if (honorInitialHash) {
+        honorInitialHash = false;
+      } else {
         map.fitBounds(
           [
             [west, south],
@@ -103,7 +126,7 @@ function update({ refetch }: { refetch: boolean }) {
 function selectSource(source: Source) {
   current = { source, generation: current.generation };
   attributionEl.textContent = source.attribution ?? "";
-  update({ refetch: true });
+  update();
 }
 
 selectEl.addEventListener("change", () => {
@@ -120,8 +143,6 @@ loadEl.addEventListener("click", () => {
 urlEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") loadEl.click();
 });
-
-debugEl.addEventListener("change", () => update({ refetch: false }));
 
 window.addEventListener("unhandledrejection", (e) => {
   setStatus(`読み込みに失敗しました:\n${e.reason}`, true);

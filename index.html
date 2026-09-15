@@ -23,8 +23,6 @@
       .row { display: flex; gap: 6px; align-items: center; }
       .row > * { flex: 1; }
       .row button { flex: 0 0 auto; padding: 5px 10px; font: inherit; cursor: pointer; }
-      .check { font-weight: 400; display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-      .check input { flex: 0 0 auto; width: auto; }
       #status {
         margin-top: 12px; padding-top: 10px; border-top: 1px solid #ddd;
         font-family: ui-monospace, "Cascadia Mono", monospace; font-size: 11px;
@@ -54,8 +52,6 @@
         <input id="url" type="url" placeholder="https://.../foo.tif" />
         <button id="load">読込</button>
       </div>
-
-      <label class="check"><input id="debug" type="checkbox" /> タイル境界と再投影メッシュを表示</label>
 
       <div id="status">初期化中…</div>
     </div>
