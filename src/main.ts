@@ -235,12 +235,13 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 /**
- * ローカル配信のソースはまだ変換が終わっていないことがあるので、最初の1件は
- * HEAD で存在を確かめてから選ぶ。見つからなければ次のソースに送る。
+ * 自前のソース（`probe: true`）は変換が終わっていなかったり、まだ R2 に
+ * 上げていなかったりするので、HEAD で存在を確かめてから選ぶ。
+ * 見つからなければ次の候補へ送り、最後は公式サンプルに落ちる。
  */
 async function pickInitialSource(): Promise<Source> {
   for (const source of SOURCES) {
-    if (!source.url.startsWith("/local/")) return source;
+    if (!source.probe) return source;
     try {
       const res = await fetch(source.url, { method: "HEAD" });
       if (res.ok) return source;

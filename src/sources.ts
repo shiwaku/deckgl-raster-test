@@ -12,6 +12,12 @@ export type Source = {
   elevationRange?: [number, number];
   /** 出典表記。CC BY などで表示が要るものは必ず入れる。 */
   attribution?: string;
+  /**
+   * 初期表示に選ぶ前に HEAD で存在を確かめる。
+   * 変換が終わっていない、まだアップロードしていない、といったことが
+   * ありうる自前のソースに付ける。公式サンプルには要らない。
+   */
+  probe?: boolean;
 };
 
 /** `.env` の VITE_COG_URL。R2 に置いた静岡市オルソを想定。 */
@@ -31,6 +37,7 @@ const shizuoka = (url: string, label: string): Source => ({
   title: `静岡市 オルソ画像 0.2m ${label} — EPSG:6676`,
   kind: "rgb",
   attribution: SHIZUOKA_ATTRIBUTION,
+  probe: true,
   url,
 });
 
